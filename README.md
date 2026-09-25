@@ -1,107 +1,49 @@
-# 🚲 Bike Share Analytics — Power BI Dashboard
+🚲 Bike Share Analytics — Power BI Dashboard
 
-Интерактивный аналитический отчёт по данным велопроката района залива Сан-Франциско (SF Bay Area Bike Share). Отчёт построен в Power BI и охватывает временные тренды, географию поездок, эффективность сети станций и демографию пользователей.
+An interactive analytics report on SF Bay Area Bike Share data. The report is built in Power BI and covers time trends, trip geography, station network efficiency, and user demographics.
 
-## 📊 О проекте
+📊 About the Project
 
-Проект реализует полный цикл анализа данных о поездках на прокатных велосипедах: от построения модели данных до готового многостраничного дашборда с drill-through, условным форматированием и рассчитанными DAX-метриками.
+The project implements a complete data analysis cycle for bike rental trip data: from building the data model to a finished multi-page dashboard with drill-through, conditional formatting, and calculated DAX metrics.
 
-**Задачи, решённые в отчёте:**
-- Анализ сезонности и роста объёма поездок (MoM / QoQ / YoY)
-- Выявление пиковых дней недели и часов загрузки
-- Географическая визуализация станций с детализацией до конкретной станции
-- Расчёт индекса загрузки станций и выявление недо- / перегруженных станций
-- Определение самых популярных маршрутов
-- Демографический анализ пользователей (возраст, пол, тип подписки)
+Tasks solved in the report:
 
-## 🗂️ Структура отчёта
+Analysis of seasonality and trip volume growth (MoM / QoQ / YoY)
+Identifying peak days of the week and peak hours
+Geographic visualization of stations with drill-down to a specific station
+Calculating a station load index and identifying under-/over-utilized stations
+Determining the most popular routes
+Demographic analysis of users (age, gender, subscription type)
+🗂️ Report Structure
 
-Отчёт состоит из 5 страниц:
+The report consists of 5 pages:
 
-| Страница | Описание |
+| Page | Description |
 |---|---|
-| **Временные ряды** | Динамика поездок по месяцам/кварталам/годам, рост MoM/QoQ/YoY, загрузка по дням недели и часам (тепловая карта) |
-| **Географический анализ** | Карта станций с размером точки по объёму поездок и цветом по средней продолжительности, drill-through до конкретной станции |
-| **Детализация станции** *(drill-through, скрыта в навигации)* | Средняя продолжительность и объём поездок для выбранной станции, динамика отправлений/прибытий по часам |
-| **Демография пользователей** | Возрастные группы, соотношение полов, доля Subscriber vs Customer |
-| **Эффективность сети** | Топ-10 популярных маршрутов, самые востребованные станции, индекс загрузки станций (недозагружена / в норме / перегружена) |
+| **Time Series** | Trip dynamics by month/quarter/year, MoM/QoQ/YoY growth, load by day of week and hour (heat map) |
+| **Geographic Analysis** | Map of stations with point size by trip volume and color by average duration, drill-through to a specific station |
+| **Station Detail** *(drill-through, hidden from navigation)* | Average duration and trip volume for the selected station, hourly dynamics of departures/arrivals |
+| **User Demographics** | Age groups, gender ratio, share of Subscriber vs Customer |
+| **Network Efficiency** | Top 10 popular routes, most in-demand stations, station load index (underutilized / normal / overloaded) |
 
-## 🧮 Модель данных
+🧮 Data Model
 
-Модель построена по схеме "снежинка":
-
-```
+The model is built as a snowflake schema:
 bikeshare_regions ──┐
                      ├─→ bikeshare_station_info ──┬─→ station_ends ──┬─→ bikeshare_trips ←── Calendar
                      │                             │                  │
-                     └─────────────────────────────┘                  (start_station_id — неактивная связь,
-                                                                        активируется через USERELATIONSHIP)
-```
+                     └─────────────────────────────┘                  (start_station_id — inactive relationship,
+                                                                        activated via USERELATIONSHIP)
 
-- **Calendar** — календарная таблица с иерархией Год / Квартал / Месяц / ДеньНедели
-- **bikeshare_trips** — факт-таблица поездок (продолжительность, станции отправления/прибытия, пол/год рождения пользователя, тип подписки)
-- **station_ends** — справочник станций (координаты, ёмкость, название)
 
-## 🔑 Ключевые DAX-меры
+💡 Key Insights
 
-```dax
-Объем поездок = COUNTROWS ( bikeshare_trips )
+Subscribers account for 86% of all trips, but their trips are on average shorter than those of one-time Customers — a typical pattern of commuter passengers vs. tourists.
+Peak load occurs on weekdays during morning and evening hours (a pattern characteristic of home–work commutes), whereas on weekends the peak shifts to daytime hours.
+Stations with a low load index are predominantly recently opened ones (less than 200 days in operation) — underutilization is more often related to how long the station has been operating than to its location.
+The most popular route runs between the Ferry Building and Embarcadero stations — a zone of high tourist and commuter activity in San Francisco.
 
-Среднее в день (весь период) = 
-DIVIDE(
-    CALCULATE ( COUNTROWS ( bikeshare_trips ), ALL ( bikeshare_trips ) ),
-    CALCULATE ( DISTINCTCOUNT ( bikeshare_trips[start_date_only] ), ALL ( bikeshare_trips ) )
-)
-
-Рост MoM % = DIVIDE ( [Объем поездок] - [Объем поездок ПрМесяц], [Объем поездок ПрМесяц] )
-
-Возрастная группа = 
-SWITCH (
-    TRUE (),
-    ISBLANK ( [Возраст] ), "Не указано",
-    [Возраст] <= 24, "18–24",
-    [Возраст] <= 34, "25–34",
-    [Возраст] <= 44, "35–44",
-    [Возраст] <= 54, "45–54",
-    [Возраст] <= 64, "55–64",
-    "65+"
-)
-```
-
-Полный список мер — в файле [`DAX_measures.md`](./DAX_measures.md) *(при наличии)*.
-
-## 💡 Ключевые инсайты
-
-- Подписчики (**Subscriber**) совершают **86%** всех поездок, но их поездки в среднем короче, чем у разовых клиентов (**Customer**) — типичное поведение пассажиров-коммьютеров vs туристов.
-- Пиковая нагрузка приходится на будние дни в утренние и вечерние часы (характерный паттерн для поездок "дом–работа"), тогда как в выходные пик смещается на дневное время.
-- Станции с низким индексом загрузки преимущественно являются недавно открытыми (менее 200 дней работы) — недозагруженность чаще связана со сроком работы станции, чем с её расположением.
-- Самый популярный маршрут циркулирует между станциями Ferry Building и Embarcadero — зона высокой туристической и коммьютерной активности в Сан-Франциско.
-
-## 🛠️ Технологии
-
-- **Power BI Desktop** — визуализация и модель данных
-- **DAX** — вычисляемые меры и столбцы
-- **Power Query** — трансформация исходных данных
-
-## 📁 Файлы репозитория
-
-```
-├── README.md                 — этот файл
-├── BikeShare_Report.pbix     — файл отчёта Power BI
-└── docs/
-    └── screenshots/          — скриншоты страниц отчёта
-```
-
-## 🚀 Как открыть
-
-1. Установите [Power BI Desktop](https://powerbi.microsoft.com/desktop/) (бесплатно).
-2. Скачайте `.pbix` файл из репозитория.
-3. Откройте файл в Power BI Desktop — все страницы, фильтры и drill-through готовы к использованию.
-
-## 📌 Источник данных
-
-Данные о поездках SF Bay Area Bike Share (2016–2017 гг.), включающие информацию о станциях, продолжительности поездок и характеристиках пользователей.
-
-## 📄 Лицензия
-
-Учебный проект, выполнен в рамках задания по бизнес-аналитике / визуализации данных.
+🛠️ Technologies
+Power BI Desktop — visualization and data model
+DAX — calculated measures and columns
+Power Query — source data transformation                                                                        
